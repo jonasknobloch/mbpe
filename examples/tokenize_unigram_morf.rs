@@ -9,7 +9,7 @@ use mbpe::pre_tokenizers::sequence::Sequence;
 
 fn main() -> Result<()> {
     let morfessor = morfessor::new_pre_tokenizer(
-        false,
+        true,
         true,
         "scripts/unsup_model.proto",
         MorfessorConfig::default(),
