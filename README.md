@@ -2,7 +2,7 @@
 
 mBPE acts as an extension to the [huggingface/tokenizers](https://github.com/huggingface/tokenizers) library and is
 designed to enhance segmentations produced by the byte-pair encoding tokenization algorithm[^1]. Byte-pair encoding has
-been show to badly approximate morphological boundaries[^2], which is especially problematic for morphologically rich
+been shown to poorly approximate morphological boundaries[^2], which is especially problematic for morphologically rich
 language. By incorporating morphological knowledge into the pre-tokenization process, we aim to improve the quality of
 produced segmentations through an induced bias towards morphologically motivated sub-word boundaries.
 
