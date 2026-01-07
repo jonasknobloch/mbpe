@@ -1,6 +1,8 @@
-module mbpe-dyn
+module github.com/jonasknobloch/mbpe
 
 go 1.24.0
+
+retract v0.1.0
 
 require (
 	github.com/dlclark/regexp2 v1.11.5

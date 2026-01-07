@@ -2,8 +2,9 @@ package mbpe
 
 import (
 	"math"
-	"mbpe-dyn/morfessor"
 	"unicode/utf8"
+
+	"github.com/jonasknobloch/mbpe/morfessor"
 )
 
 type Morfessor struct {

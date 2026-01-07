@@ -7,9 +7,10 @@ import (
 	"fmt"
 	"log"
 	"math"
-	mbpe "mbpe-dyn"
 	"regexp"
 	"strings"
+
+	"github.com/jonasknobloch/mbpe"
 )
 
 type Sample struct {

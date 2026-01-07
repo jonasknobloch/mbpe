@@ -3,8 +3,9 @@
 package main
 
 import (
-	"mbpe-dyn/internal/web"
 	"syscall/js"
+
+	"github.com/jonasknobloch/mbpe/internal/web"
 )
 
 func main() {

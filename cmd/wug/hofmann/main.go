@@ -4,9 +4,10 @@ import (
 	"fmt"
 	"log"
 	"math"
-	mbpe "mbpe-dyn"
-	"mbpe-dyn/cmd/wug/nonce"
 	"slices"
+
+	"github.com/jonasknobloch/mbpe"
+	"github.com/jonasknobloch/mbpe/cmd/wug/nonce"
 )
 
 func main() {

@@ -1,8 +1,9 @@
 package mbpe
 
 import (
-	"github.com/dlclark/regexp2"
 	"testing"
+
+	"github.com/dlclark/regexp2"
 )
 
 func regexp2FindAllString(re *regexp2.Regexp, s string) []string {

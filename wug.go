@@ -1,6 +1,6 @@
 package mbpe
 
-import "mbpe-dyn/cmd/wug/nonce"
+import "github.com/jonasknobloch/mbpe/cmd/wug/nonce"
 
 type AdjectiveSuffixEvaluator struct {
 	able          [50]string

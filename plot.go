@@ -1,13 +1,14 @@
 package mbpe
 
 import (
+	"image/color"
+	"log"
+	"sort"
+
 	"gonum.org/v1/gonum/interp"
 	pl "gonum.org/v1/plot"
 	"gonum.org/v1/plot/plotter"
 	"gonum.org/v1/plot/vg"
-	"image/color"
-	"log"
-	"sort"
 )
 
 type PlotData struct {

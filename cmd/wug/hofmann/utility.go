@@ -1,8 +1,9 @@
 package main
 
 import (
-	"golang.org/x/exp/constraints"
 	"slices"
+
+	"golang.org/x/exp/constraints"
 )
 
 func getKeys[K constraints.Ordered, V any](m map[K]V) []K {

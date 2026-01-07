@@ -1,9 +1,10 @@
 package morfessor
 
 import (
-	pb "mbpe-dyn/morfessor/proto"
 	"reflect"
 	"testing"
+
+	pb "github.com/jonasknobloch/mbpe/morfessor/proto"
 )
 
 var model *pb.BaselineModel

@@ -1,6 +1,6 @@
 package main
 
-import mbpe "mbpe-dyn"
+import "github.com/jonasknobloch/mbpe"
 
 func surveyResponses(name string) ([]float64, []bool, []string, error) {
 	var data map[string]interface{}

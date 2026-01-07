@@ -2,8 +2,9 @@ package mbpe
 
 import (
 	"errors"
-	legacy "mbpe-dyn/bpr"
 	"strings"
+
+	legacy "github.com/jonasknobloch/mbpe/bpr"
 )
 
 const (

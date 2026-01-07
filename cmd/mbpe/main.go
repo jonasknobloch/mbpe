@@ -5,12 +5,13 @@ import (
 	_ "embed"
 	"errors"
 	"fmt"
-	"golang.org/x/image/colornames"
 	"log"
-	mbpe "mbpe-dyn"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/jonasknobloch/mbpe"
+	"golang.org/x/image/colornames"
 )
 
 func main() {

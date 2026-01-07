@@ -3,8 +3,9 @@ package mbpe
 import (
 	"bufio"
 	"fmt"
-	"mbpe-dyn/hf"
 	"strings"
+
+	"github.com/jonasknobloch/mbpe/hf"
 )
 
 type Model interface {

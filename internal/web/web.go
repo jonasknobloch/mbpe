@@ -7,9 +7,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-	"mbpe-dyn"
 	"strings"
 	"syscall/js"
+
+	"github.com/jonasknobloch/mbpe"
 )
 
 type WToken struct {

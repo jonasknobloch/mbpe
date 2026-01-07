@@ -2,11 +2,12 @@ package morfessor
 
 import (
 	"fmt"
-	"google.golang.org/protobuf/proto"
 	"math"
-	pb "mbpe-dyn/morfessor/proto"
 	"os"
 	"unicode/utf8"
+
+	pb "github.com/jonasknobloch/mbpe/morfessor/proto"
+	"google.golang.org/protobuf/proto"
 )
 
 type Model struct {

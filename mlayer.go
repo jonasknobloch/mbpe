@@ -2,8 +2,9 @@ package mbpe
 
 import (
 	"errors"
-	"mbpe-dyn/bpr"
 	"strings"
+
+	"github.com/jonasknobloch/mbpe/bpr"
 )
 
 type MergeLayerEvaluator struct {

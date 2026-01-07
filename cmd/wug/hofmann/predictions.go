@@ -3,8 +3,9 @@ package main
 import (
 	"errors"
 	"math"
-	mbpe "mbpe-dyn"
 	"strings"
+
+	"github.com/jonasknobloch/mbpe"
 )
 
 type Entry struct {
