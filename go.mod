@@ -6,7 +6,7 @@ retract v0.1.0
 
 require (
 	github.com/dlclark/regexp2 v1.11.5
-	golang.org/x/exp v0.0.0-20241009180824-f66d83c29e7c
+	golang.org/x/exp v0.0.0-20260112195511-716be5621a96
 	golang.org/x/image v0.37.0
 	gonum.org/v1/gonum v0.17.0
 	gonum.org/v1/plot v0.16.0
