@@ -28,6 +28,10 @@ func (t *Tokenizer) SetDecoder(decoder Decoder) {
 	t.decoder = decoder
 }
 
+func (t *Tokenizer) Model() Model {
+	return t.model
+}
+
 func (t *Tokenizer) Tokenize(phrase string) []int {
 	chunks := t.preTokenizer.PreTokenize(phrase)
 
