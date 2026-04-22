@@ -31,7 +31,7 @@ func NewFSA() *FSA {
 	return &FSA{
 		state:  StateInitial,
 		input:  make([]rune, 0),
-		static: []string{"'s", "'t", "'re", "'m", "'ll", "'d"},
+		static: []string{"'s", "'t", "'re", "'ve", "'m", "'ll", "'d"},
 	}
 }
 
