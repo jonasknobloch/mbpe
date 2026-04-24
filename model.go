@@ -208,6 +208,11 @@ func (m *MBPE) Save(vocab, merges string) error {
 	}
 
 	if err := toFile(merges, func(writer *bufio.Writer) error {
+		// required; otherwise hf strips first merge on import
+		if _, err := writer.WriteString("#version: 0.2\n"); err != nil {
+			return err
+		}
+
 		for _, merge := range m.merges {
 			if _, err := writer.WriteString(merge[0] + " " + merge[1] + "\n"); err != nil {
 				return err
