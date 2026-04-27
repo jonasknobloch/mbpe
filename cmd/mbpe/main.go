@@ -287,7 +287,7 @@ func train() {
 	m100 := morfessor(1.0)
 
 	newTrainer := func(segmenter mbpe.Segmenter) *mbpe.MBPETrainer {
-		return mbpe.NewMBPETrainer(mbpe.NewByteLevel(true), segmenter, mbpe.NewMBPE(), 1<<17)
+		return mbpe.NewMBPETrainer(mbpe.NewByteLevel(true), segmenter, mbpe.NewMBPE(), 1<<17, nil)
 	}
 
 	trainers := []struct {

@@ -11,20 +11,22 @@ import (
 )
 
 type MBPETrainer struct {
-	preTokenizer PreTokenizer
-	segmenter    Segmenter
-	model        *MBPE
-	vocabSize    int
-	dict         *Dict
+	preTokenizer    PreTokenizer
+	segmenter       Segmenter
+	model           *MBPE
+	vocabSize       int
+	dict            *Dict
+	initialAlphabet map[string]struct{}
 }
 
-func NewMBPETrainer(preTokenizer PreTokenizer, segmenter Segmenter, model *MBPE, vocabSize int) *MBPETrainer {
+func NewMBPETrainer(preTokenizer PreTokenizer, segmenter Segmenter, model *MBPE, vocabSize int, initialAlphabet map[string]struct{}) *MBPETrainer {
 	return &MBPETrainer{
-		preTokenizer: preTokenizer,
-		segmenter:    segmenter,
-		model:        model,
-		vocabSize:    vocabSize,
-		dict:         NewDict(),
+		preTokenizer:    preTokenizer,
+		segmenter:       segmenter,
+		model:           model,
+		vocabSize:       vocabSize,
+		dict:            NewDict(),
+		initialAlphabet: initialAlphabet,
 	}
 }
 
@@ -265,6 +267,12 @@ func (t *MBPETrainer) InitVocab() {
 			}
 
 			tokens[token]++
+		}
+	}
+
+	if t.initialAlphabet != nil {
+		for token := range t.initialAlphabet {
+			tokens[token] = 0
 		}
 	}
 
