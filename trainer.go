@@ -3,11 +3,14 @@ package mbpe
 import (
 	"bufio"
 	"container/heap"
-	"context"
 	"fmt"
 	"os"
 	"sort"
+	"sync/atomic"
 	"time"
+
+	"go.jknobloc.com/x/dataset"
+	"go.jknobloc.com/x/tui"
 )
 
 type MBPETrainer struct {
@@ -38,53 +41,52 @@ func (t *MBPETrainer) Dict() *Dict {
 	return t.dict
 }
 
-func (t *MBPETrainer) InitDict(names ...string) error {
-	var lines int
+func (t *MBPETrainer) InitDict(reader dataset.Reader) error {
+	var total int
 
-	if l, err := countLines(names...); err != nil {
+	if n, err := reader.Num(); err != nil {
 		return err
 	} else {
-		lines = l
+		total = n
 	}
 
-	pb := NewProgressBar("Pre-process files", 20, lines, time.Now())
+	var completed atomic.Int64
 
-	ctx, cancel := context.WithCancel(context.Background())
+	pb := tui.NewProgressBar("Pre-process files", 20, total, time.Now())
 
-	defer cancel()
+	texts := func(yield func(int, string) bool) {
+		last := -1
 
-	done := make(chan struct{})
+		for k, v := range reader.Texts() {
+			if last != -1 && k != last {
+				completed.Add(1)
+			}
 
-	go func(ctx context.Context) {
-	main:
-		for {
-			select {
-			case <-ctx.Done():
-				break main
-			default:
-				time.Sleep(time.Second * 1)
+			last = k
 
-				l := t.dict.Lines()
-
-				pb.Update(l)
-				pb.Print()
-
-				if l >= lines {
-					break main
-				}
+			if !yield(k, v) {
+				return
 			}
 		}
+	}
 
-		pb.Finish()
+	pb.Start(1*time.Second, func() int {
+		return int(completed.Load())
+	})
 
-		close(done)
-	}(ctx)
+	defer pb.Close()
 
-	err := t.dict.ProcessFiles(names...)
+	if err := t.dict.ProcessTexts(texts); err != nil {
+		return err
+	}
 
-	<-done
+	if err := reader.Err(); err != nil {
+		return err
+	}
 
-	return err
+	completed.Add(1) // final document
+
+	return nil
 }
 
 func (t *MBPETrainer) LoadDict(name string) error {

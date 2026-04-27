@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/jonasknobloch/mbpe"
+	"go.jknobloc.com/x/dataset"
 	"golang.org/x/image/colornames"
 )
 
@@ -310,17 +311,16 @@ func train() {
 	for i, t := range trainers {
 		dict := filepath.Join(out, "dict.txt")
 
-		raw := []string{
-			"data/babyllm/train_100M/bnc_spoken.train",
-			"data/babyllm/train_100M/childes.train",
-			"data/babyllm/train_100M/gutenberg.train",
-			"data/babyllm/train_100M/open_subtitles.train",
-			"data/babyllm/train_100M/simple_wiki.train",
-			"data/babyllm/train_100M/switchboard.train",
+		var reader dataset.Reader
+
+		if r, err := dataset.NewFileReader("data/babyllm/train_100M", "*.train"); err != nil {
+			log.Fatal(err)
+		} else {
+			reader = r
 		}
 
 		if err := t.LoadDict(dict); err != nil {
-			if err := t.InitDict(raw...); err != nil {
+			if err := t.InitDict(reader); err != nil {
 				log.Fatal(err)
 			}
 

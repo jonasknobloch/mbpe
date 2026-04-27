@@ -3,11 +3,13 @@ package mbpe
 import (
 	"bufio"
 	"fmt"
-	"os"
+	"iter"
+	"path"
 	"runtime"
 	"sort"
-	"strings"
 	"sync"
+
+	"go.jknobloc.com/x/dataset"
 )
 
 type Dict struct {
@@ -32,7 +34,7 @@ func (d *Dict) Lines() int {
 	return d.lines
 }
 
-func (d *Dict) ProcessFiles(names ...string) error {
+func (d *Dict) ProcessTexts(texts iter.Seq2[int, string]) error {
 	jobs := make(chan string)
 
 	var wg sync.WaitGroup
@@ -77,57 +79,35 @@ func (d *Dict) ProcessFiles(names ...string) error {
 		}()
 	}
 
-	for _, name := range names {
-		var file *os.File
-
-		if f, err := os.Open(name); err != nil {
-			return err
-		} else {
-			file = f
-		}
-
-		defer file.Close()
-
-		scanner := bufio.NewScanner(file)
-
-		buf := make([]byte, 0, 1024*1024)
-
-		scanner.Buffer(buf, 1024*1024)
-
-		scanner.Split(func(data []byte, atEOF bool) (advance int, token []byte, err error) {
-			if atEOF && len(data) == 0 {
-				return 0, nil, nil
-			}
-
-			if i := strings.IndexAny(string(data), "\r\n"); i >= 0 {
-				if i+1 < len(data) && data[i] == '\r' && data[i+1] == '\n' {
-					return i + 2, data[0 : i+2], nil
-				}
-
-				return i + 1, data[0 : i+1], nil
-			}
-
-			if atEOF {
-				return len(data), data, nil
-			}
-
-			return 0, nil, nil
-		})
-
-		for scanner.Scan() {
-			line := scanner.Text()
-
-			if err := scanner.Err(); err != nil {
-				return err
-			}
-
-			jobs <- line
-		}
+	for _, text := range texts {
+		jobs <- text
 	}
 
 	close(jobs)
 
 	wg.Wait()
+
+	return nil
+}
+
+// Deprecated: Use ProcessTexts with an appropriate reader instead.
+func (d *Dict) ProcessFiles(names ...string) error {
+	for _, name := range names {
+		dir := path.Dir(name)
+		base := path.Base(name)
+
+		var reader dataset.Reader
+
+		if r, err := dataset.NewFileReader(dir, base); err != nil {
+			return err
+		} else {
+			reader = r
+		}
+
+		if err := d.ProcessTexts(reader.Texts()); err != nil {
+			return err
+		}
+	}
 
 	return nil
 }
