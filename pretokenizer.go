@@ -1,8 +1,12 @@
 package mbpe
 
+type Matcher interface {
+	FindAll(string) []string
+}
+
 type ByteLevel struct {
 	addPrefixSpace bool
-	fsa            *FSA
+	matcher        Matcher
 }
 
 type PreTokenizer interface {
@@ -12,8 +16,12 @@ type PreTokenizer interface {
 func NewByteLevel(addPrefixSpace bool) *ByteLevel {
 	return &ByteLevel{
 		addPrefixSpace: addPrefixSpace,
-		fsa:            NewFSA(),
+		matcher:        NewFSA(),
 	}
+}
+
+func (p *ByteLevel) SetMatcher(matcher Matcher) {
+	p.matcher = matcher
 }
 
 func (p *ByteLevel) PreTokenize(phrase string) []string {
@@ -25,7 +33,7 @@ func (p *ByteLevel) PreTokenize(phrase string) []string {
 		phrase = " " + phrase
 	}
 
-	compounds := p.fsa.FindAll(phrase)
+	compounds := p.matcher.FindAll(phrase)
 
 	for i, compound := range compounds {
 		r := ""
