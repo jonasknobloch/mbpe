@@ -48,7 +48,7 @@ func (p PlotData) XY(i int) (x, y float64) {
 	return p.xs[i], p.ys[i]
 }
 
-func Plot(data []PlotData, rangeX, rangeY [2]float64, labelX, labelY string) {
+func Plot(data []PlotData, rangeX, rangeY [2]float64, labelX, labelY string, name string) {
 	p := pl.New()
 
 	p.X.Min = rangeX[0]
@@ -111,7 +111,7 @@ func Plot(data []PlotData, rangeX, rangeY [2]float64, labelX, labelY string) {
 		drawScatter(s)
 	}
 
-	if err := p.Save(8*vg.Inch, 5*vg.Inch, "assets/plot.svg"); err != nil {
+	if err := p.Save(8*vg.Inch, 5*vg.Inch, name); err != nil {
 		log.Fatal(err)
 	}
 }
