@@ -1,5 +1,13 @@
 package mbpe
 
+import "sync"
+
+var pairWeightPool = sync.Pool{
+	New: func() any {
+		return make(map[Pair]float64)
+	},
+}
+
 type Chunk struct {
 	src     string
 	n       int
@@ -250,12 +258,12 @@ func (c *Chunk) MergePair(left, right string) {
 }
 
 func (c *Chunk) TrackedMerge(merge Merge) (map[Pair]Change, float64) {
-	before := make(map[Pair]float64, len(c.clashes))
+	before := pairWeightPool.Get().(map[Pair]float64)
 	epsilonBefore := c.weightsInto(before)
 
 	c.MergePair(merge.pair[0], merge.pair[1])
 
-	after := make(map[Pair]float64, len(c.clashes))
+	after := pairWeightPool.Get().(map[Pair]float64)
 	epsilonAfter := c.weightsInto(after)
 
 	changes := make(map[Pair]Change, len(before))
@@ -289,6 +297,11 @@ func (c *Chunk) TrackedMerge(merge Merge) (map[Pair]Change, float64) {
 			}
 		}
 	}
+
+	clear(before)
+	pairWeightPool.Put(before)
+	clear(after)
+	pairWeightPool.Put(after)
 
 	return changes, epsilonAfter - epsilonBefore
 }
