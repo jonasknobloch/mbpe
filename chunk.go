@@ -8,6 +8,21 @@ var pairWeightPool = sync.Pool{
 	},
 }
 
+var changePool = sync.Pool{
+	New: func() any {
+		return make(map[Pair]Change)
+	},
+}
+
+func GetChanges() map[Pair]Change {
+	return changePool.Get().(map[Pair]Change)
+}
+
+func ReleaseChanges(m map[Pair]Change) {
+	clear(m)
+	changePool.Put(m)
+}
+
 type Chunk struct {
 	src     string
 	n       int
@@ -257,7 +272,7 @@ func (c *Chunk) MergePair(left, right string) {
 	}
 }
 
-func (c *Chunk) TrackedMerge(merge Merge) (map[Pair]Change, float64) {
+func (c *Chunk) TrackedMerge(merge Merge, changes map[Pair]Change) float64 {
 	before := pairWeightPool.Get().(map[Pair]float64)
 	epsilonBefore := c.weightsInto(before)
 
@@ -265,8 +280,6 @@ func (c *Chunk) TrackedMerge(merge Merge) (map[Pair]Change, float64) {
 
 	after := pairWeightPool.Get().(map[Pair]float64)
 	epsilonAfter := c.weightsInto(after)
-
-	changes := make(map[Pair]Change, len(before))
 
 	for pair, weightBefore := range before {
 		if weightAfter, ok := after[pair]; ok {
@@ -303,7 +316,7 @@ func (c *Chunk) TrackedMerge(merge Merge) (map[Pair]Change, float64) {
 	clear(after)
 	pairWeightPool.Put(after)
 
-	return changes, epsilonAfter - epsilonBefore
+	return epsilonAfter - epsilonBefore
 }
 
 func (c *Chunk) Tokens() []string {

@@ -197,12 +197,12 @@ func (t *MBPETrainer) Train() {
 
 		t.AddToken(top.pair[0], top.pair[1])
 
+		changes := GetChanges()
+
 		for _, position := range top.positions {
 			chunk := &chunks[position]
 
-			changes, delta := chunk.TrackedMerge(top)
-
-			epsilon += delta
+			epsilon += chunk.TrackedMerge(top, changes)
 
 			for pair, change := range changes {
 				mergeWeights[pair] += change.delta
@@ -226,7 +226,11 @@ func (t *MBPETrainer) Train() {
 
 				pairPositions[pair] = append(pairPositions[pair], position)
 			}
+
+			clear(changes)
 		}
+
+		ReleaseChanges(changes)
 
 		for pair := range pairPositions {
 			id := [2]int{

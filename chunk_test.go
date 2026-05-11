@@ -54,12 +54,15 @@ func TestChunk_MergePair(t *testing.T) {
 func TestChunk_TrackedMerge(t *testing.T) {
 	c := NewChunk("Ġthither", 1, nil, 0)
 
-	changes, _ := c.TrackedMerge(Merge{
+	changes := GetChanges()
+	defer ReleaseChanges(changes)
+
+	c.TrackedMerge(Merge{
 		pair:      Pair{"Ġ", "t"},
 		ids:       [2]int{0, 1},
 		weight:    0,
 		positions: nil,
-	})
+	}, changes)
 
 	if len(changes) != 3 {
 		t.Errorf("expected %d changes but got %d\n", 3, len(changes))
