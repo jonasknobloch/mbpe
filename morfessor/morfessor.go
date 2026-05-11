@@ -55,16 +55,14 @@ func decodeModel(name string) (*pb.BaselineModel, error) {
 }
 
 func unicodeScalarBounds(message string) []int {
-	var bounds []int
+	bounds := make([]int, 0, len(message))
 
 	i := 0
 
 	for _, r := range message {
-		l := len(string(r))
+		i += utf8.RuneLen(r)
 
-		bounds = append(bounds, i+l)
-
-		i += l
+		bounds = append(bounds, i)
 	}
 
 	return bounds
@@ -91,7 +89,9 @@ func getCodeLength(lexiconCoding *pb.LexiconEncoding, construction string) float
 }
 
 func viterbiSegment(model *pb.BaselineModel, compound string, addCount float64, maxLen int) ([]string, float64) {
-	compoundLength := len(unicodeScalarBounds(compound))
+	bounds := unicodeScalarBounds(compound)
+
+	compoundLength := len(bounds)
 
 	grid := []struct {
 		float64
@@ -110,8 +110,6 @@ func viterbiSegment(model *pb.BaselineModel, compound string, addCount float64, 
 	}
 
 	badLikelihood := float64(compoundLength)*logTokens + 1.0
-
-	bounds := unicodeScalarBounds(compound)
 
 	var boundsUpper, boundsLower = make([]int, len(bounds)), make([]int, len(bounds))
 
@@ -159,7 +157,7 @@ func viterbiSegment(model *pb.BaselineModel, compound string, addCount float64, 
 			}
 
 			if addCount == 0 {
-				if len(unicodeScalarBounds(construction)) == 1 {
+				if _, size := utf8.DecodeRuneInString(construction); size == len(construction) {
 					cost += badLikelihood
 
 					evalPath(pt, cost)
