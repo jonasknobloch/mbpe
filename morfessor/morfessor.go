@@ -93,12 +93,13 @@ func viterbiSegment(model *pb.BaselineModel, compound string, addCount float64, 
 
 	compoundLength := len(bounds)
 
-	grid := []struct {
-		float64
-		*int
-	}{
-		{0, nil},
+	type cell struct {
+		cost float64
+		prev int
 	}
+
+	grid := make([]cell, len(compound)+1)
+	grid[0].prev = -1
 
 	corpusTokens := float64(model.XCorpusCoding.Tokens)
 	corpusBoundaries := float64(model.XCorpusCoding.Boundaries)
@@ -111,36 +112,26 @@ func viterbiSegment(model *pb.BaselineModel, compound string, addCount float64, 
 
 	badLikelihood := float64(compoundLength)*logTokens + 1.0
 
-	var boundsUpper, boundsLower = make([]int, len(bounds)), make([]int, len(bounds))
+	for i := 0; i < compoundLength; i++ {
+		t := bounds[i]
 
-	copy(boundsUpper, bounds)
-	copy(boundsLower, bounds)
+		bestPrev := -1
+		bestCost := 0.0
 
-	boundsLower = append([]int{0}, boundsLower[:len(boundsLower)-1]...)
-
-	for _, t := range boundsUpper {
-		var bestPath *int
-		var bestCost *float64
-
-		evalPath := func(path int, cost float64) {
-			if bestCost == nil || cost < *bestCost {
-				bestPath = &path
-				bestCost = &cost
-			}
+		startJ := 0
+		if i+1 > maxLen {
+			startJ = i + 1 - maxLen
 		}
 
-		for _, pt := range boundsLower {
-			if pt >= t {
-				break // up to but not including t
+		// j is the rune index of the construction start; rune count = i - j + 1 <= maxLen by construction.
+		for j := startJ; j <= i; j++ {
+			pt := 0
+			if j > 0 {
+				pt = bounds[j-1]
 			}
 
+			cost := grid[pt].cost
 			construction := compound[pt:t]
-
-			if utf8.RuneCountInString(construction) > maxLen {
-				continue
-			}
-
-			cost := grid[pt].float64
 
 			if analysis, ok := model.XAnalyses[construction]; ok {
 				if len(analysis.Splitloc) == 0 || analysis.Splitloc[0] == 0 {
@@ -148,19 +139,25 @@ func viterbiSegment(model *pb.BaselineModel, compound string, addCount float64, 
 						panic(fmt.Sprintf("Construction count of '%s' is %d", construction, analysis.Count))
 					}
 
-					cost += logTokens - math.Log(float64(analysis.Count)+addCount)
+					c := cost + logTokens - math.Log(float64(analysis.Count)+addCount)
 
-					evalPath(pt, cost)
+					if bestPrev == -1 || c < bestCost {
+						bestPrev = pt
+						bestCost = c
+					}
 
 					continue
 				}
 			}
 
 			if addCount == 0 {
-				if _, size := utf8.DecodeRuneInString(construction); size == len(construction) {
-					cost += badLikelihood
+				if i == j { // single rune: rune count = i - j + 1 = 1
+					c := cost + badLikelihood
 
-					evalPath(pt, cost)
+					if bestPrev == -1 || c < bestCost {
+						bestPrev = pt
+						bestCost = c
+					}
 				}
 
 				continue
@@ -173,64 +170,50 @@ func viterbiSegment(model *pb.BaselineModel, compound string, addCount float64, 
 				lexiconBoundaries := float64(lexiconCoding.Boundaries)
 				corpusWeight := float64(corpusCoding.Weight)
 
+				var c float64
+
 				if corpusCoding.Tokens == 0 {
-					cost += addCount*math.Log(addCount) + getCodeLength(lexiconCoding, construction)/corpusWeight
+					c = cost + addCount*math.Log(addCount) + getCodeLength(lexiconCoding, construction)/corpusWeight
 				} else {
-					cost += logTokens - math.Log(addCount) + (((lexiconBoundaries+addCount)*math.Log(lexiconBoundaries+addCount))-(lexiconBoundaries*math.Log(lexiconBoundaries))+getCodeLength(lexiconCoding, construction))/corpusWeight
+					c = cost + logTokens - math.Log(addCount) + (((lexiconBoundaries+addCount)*math.Log(lexiconBoundaries+addCount))-(lexiconBoundaries*math.Log(lexiconBoundaries))+getCodeLength(lexiconCoding, construction))/corpusWeight
 				}
 
-				evalPath(pt, cost)
+				if bestPrev == -1 || c < bestCost {
+					bestPrev = pt
+					bestCost = c
+				}
 
 				continue
 			}
 		}
 
-		if bestPath == nil {
+		if bestPrev == -1 {
 			panic("no best path")
 		}
 
-		for len(grid) < t {
-			grid = append(grid, struct {
-				float64
-				*int
-			}{
-				math.NaN(),
-				nil,
-			})
-		}
-
-		grid = append(grid, struct {
-			float64
-			*int
-		}{
-			*bestCost,
-			bestPath,
-		})
+		grid[t] = cell{bestCost, bestPrev}
 	}
-
-	var constructions []string
 
 	if len(grid) != len(compound)+1 {
 		panic("invalid grid length")
 	}
 
-	cost := grid[len(grid)-1].float64
-	path := grid[len(grid)-1].int
+	var constructions []string
 
 	lastT := len(compound)
+	prev := grid[lastT].prev
 
-	for path != nil {
-		t := *path
-		constructions = append(constructions, compound[t:lastT])
-		path = grid[t].int
-		lastT = t
+	for prev != -1 {
+		constructions = append(constructions, compound[prev:lastT])
+		lastT = prev
+		prev = grid[lastT].prev
 	}
 
-	for i, j := 0, len(constructions)-1; i < j; i, j = i+1, j-1 {
-		constructions[i], constructions[j] = constructions[j], constructions[i]
+	for lo, hi := 0, len(constructions)-1; lo < hi; lo, hi = lo+1, hi-1 {
+		constructions[lo], constructions[hi] = constructions[hi], constructions[lo]
 	}
 
-	cost += math.Log(corpusTokens+corpusBoundaries) - math.Log(corpusBoundaries)
+	cost := grid[len(compound)].cost + math.Log(corpusTokens+corpusBoundaries) - math.Log(corpusBoundaries)
 
 	if len(constructions) == 0 {
 		panic("no constructions")
