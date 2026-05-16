@@ -1,10 +1,15 @@
 package mbpe
 
+import (
+	"iter"
+	"unicode/utf8"
+)
+
 type Chunk struct {
 	src    string
 	n      int
-	bounds []int
-	morphs []int
+	bounds []bool
+	morphs []bool
 	alpha  float64
 }
 
@@ -17,58 +22,52 @@ type Change struct {
 var InvertWeightFunction = false
 
 func NewChunk(src string, n int, splits []string, alpha float64) *Chunk {
-	bounds := []int{0}
+	bounds := make([]bool, len(src)+1)
+
+	bounds[0] = true
+
+	i := 0
 
 	for _, r := range src {
-		j := bounds[len(bounds)-1] + len(string(r))
+		i += utf8.RuneLen(r)
 
-		bounds = append(bounds, j)
+		bounds[i] = true
 	}
 
-	var morphs []int
-
-	if len(splits) > 1 {
-		morphs = make([]int, 0)
-
-		i := 0
-
-		for _, sub := range splits[:len(splits)-1] {
-			i += len(sub)
-
-			morphs = append(morphs, i)
-		}
-	}
-
-	// suffixes := []string{"ing", "s", "ed"}
-	//
-	// for _, suffix := range suffixes {
-	// 	if strings.HasSuffix(src, suffix) {
-	// 		morphs = append(morphs, len(src)-len(suffix))
-	// 	}
-	// }
-
-	return &Chunk{
+	chunk := &Chunk{
 		src:    src,
 		n:      n,
 		bounds: bounds,
-		morphs: morphs,
+		morphs: nil,
 		alpha:  alpha,
 	}
+
+	if len(splits) > 1 {
+		chunk.Split(splits)
+	}
+
+	return chunk
 }
 
 func (c *Chunk) Split(segments []string) {
-	var morphs []int
+	if len(segments) == 0 {
+		panic("empty segments")
+	}
 
-	if len(segments) > 1 {
-		morphs = make([]int, 0)
+	morphs := make([]bool, len(c.src)+1)
 
-		i := 0
+	morphs[0] = true
 
-		for _, sub := range segments[:len(segments)-1] {
-			i += len(sub)
+	i := 0
 
-			morphs = append(morphs, i)
+	for _, sub := range segments[:len(segments)-1] {
+		if sub != c.src[i:i+len(sub)] {
+			panic("unexpected segment")
 		}
+
+		i += len(sub)
+
+		morphs[i] = true
 	}
 
 	c.morphs = morphs
@@ -78,17 +77,51 @@ func (c *Chunk) Alpha(alpha float64) {
 	c.alpha = alpha
 }
 
-func (c *Chunk) Pairs() []Pair {
-	pairs := make([]Pair, len(c.bounds)-2)
+func (c *Chunk) NumPairs() int {
+	return c.NumTokens() - 1
+}
 
-	for i := 0; i < len(c.bounds)-2; i++ {
-		pairs[i] = Pair{
-			c.src[c.bounds[i]:c.bounds[i+1]],
-			c.src[c.bounds[i+1]:c.bounds[i+2]],
+func (c *Chunk) PairBounds() iter.Seq2[int, [3]int] {
+	return func(yield func(int, [3]int) bool) {
+		start, end := -1, -1
+
+		for i, bounds := range c.TokensBounds() {
+			if i == 0 {
+				start = bounds[0]
+				end = bounds[1]
+
+				continue
+			}
+
+			next := bounds[1]
+
+			if !yield(i-1, [3]int{start, end, next}) {
+				return
+			}
+
+			start = end
+			end = next
 		}
 	}
+}
 
-	return pairs
+func (c *Chunk) Pairs() iter.Seq2[int, Pair] {
+	return func(yield func(int, Pair) bool) {
+		for i, bounds := range c.PairBounds() {
+			start := bounds[0]
+			end := bounds[1]
+			next := bounds[2]
+
+			pair := Pair{
+				c.src[start:end],
+				c.src[end:next],
+			}
+
+			if !yield(i, pair) {
+				return
+			}
+		}
+	}
 }
 
 func (c *Chunk) WeightedPairs() ([]Pair, []float64, float64) {
@@ -96,28 +129,7 @@ func (c *Chunk) WeightedPairs() ([]Pair, []float64, float64) {
 }
 
 func (c *Chunk) weightedPairs(inverse bool) ([]Pair, []float64, float64) {
-	pairs := c.Pairs()
-
-	if len(pairs) == 0 {
-		return pairs, []float64{}, 0.0
-	}
-
-	clashes := make([]bool, len(pairs))
-
-	for i := 0; i < len(c.bounds)-2; i++ {
-		lower := c.bounds[i]
-		upper := c.bounds[i+2]
-
-		for _, b := range c.morphs {
-			if b > lower && b < upper {
-				clashes[i] = true
-
-				break
-			}
-		}
-	}
-
-	weights, epsilon := c.pairWeights(pairs, clashes, inverse)
+	pairs, weights, epsilon := c.pairWeights(inverse)
 
 	for i := range weights {
 		weights[i] *= float64(c.n)
@@ -128,22 +140,36 @@ func (c *Chunk) weightedPairs(inverse bool) ([]Pair, []float64, float64) {
 	return pairs, weights, epsilon
 }
 
-func (c *Chunk) pairWeights(pairs []Pair, clashes []bool, inverse bool) ([]float64, float64) {
-	weights := make([]float64, len(pairs))
+func (c *Chunk) pairWeights(inverse bool) ([]Pair, []float64, float64) {
+	numPairs := c.NumPairs()
 
-	n := float64(len(weights))
+	if numPairs == 0 {
+		return nil, []float64{}, 0.0
+	}
+
+	n := float64(numPairs)
 	k := 0.0
 
-	for _, v := range clashes {
-		if v != inverse {
-			k++
+	if c.morphs != nil {
+		for _, bounds := range c.PairBounds() {
+			if c.morphs[bounds[1]] != inverse {
+				k++
+			}
 		}
 	}
 
-	for i := range pairs {
+	pairs := make([]Pair, numPairs)
+	weights := make([]float64, numPairs)
+
+	for i, bounds := range c.PairBounds() {
+		pairs[i] = Pair{
+			c.src[bounds[0]:bounds[1]],
+			c.src[bounds[1]:bounds[2]],
+		}
+
 		var w float64
 
-		if clashes[i] != inverse {
+		if c.morphs != nil && c.morphs[bounds[1]] != inverse {
 			w = (1 - c.alpha) + (c.alpha * (k - 1) / n)
 		} else {
 			w = 1 + (c.alpha * k / n)
@@ -154,24 +180,36 @@ func (c *Chunk) pairWeights(pairs []Pair, clashes []bool, inverse bool) ([]float
 
 	epsilon := c.alpha * k / n // no merge
 
-	return weights, epsilon
+	return pairs, weights, epsilon
 }
 
 func (c *Chunk) MergePairIdx(i int) {
-	if i > len(c.bounds)-2 {
+	n := c.NumPairs()
+
+	if i < 0 || i > n {
 		panic("merge out of bounds")
 	}
 
-	c.bounds = append(c.bounds[:i+1], c.bounds[i+2:]...)
+	for j, pair := range c.PairBounds() {
+		if j != i {
+			continue
+		}
+
+		c.bounds[pair[1]] = false
+
+		return
+	}
 }
 
 func (c *Chunk) MergePair(left, right string) {
-	for i := 0; i < len(c.bounds)-2; i++ {
-		l := c.src[c.bounds[i]:c.bounds[i+1]]
-		r := c.src[c.bounds[i+1]:c.bounds[i+2]]
+	for _, pair := range c.PairBounds() {
+		start := pair[0]
+		end := pair[1]
+		next := pair[2]
 
-		if l == left && r == right {
-			c.MergePairIdx(i)
+		if c.src[start:end] == left && c.src[end:next] == right {
+			c.bounds[end] = false
+
 			c.MergePair(left, right)
 
 			return
@@ -232,42 +270,57 @@ func (c *Chunk) TrackedMerge(merge Merge) (map[Pair]Change, float64) {
 	return changes, epsilonAfter - epsilonBefore
 }
 
-func (c *Chunk) Tokens() []string {
-	r := make([]string, 0, len(c.bounds)-1)
+func (c *Chunk) NumTokens() int {
+	n := 0
 
-	for i := 0; i < len(c.bounds)-1; i++ {
-		r = append(r, c.src[c.bounds[i]:c.bounds[i+1]])
+	for _, b := range c.bounds {
+		if b {
+			n++
+		}
 	}
 
-	return r
+	return n - 1
 }
 
-// Deprecated: Use Inverter segmenter instead. Disable MergePrefixWhiteSpace
-// to maintain behavior of Invert during training.
-func (c *Chunk) Invert() {
-	n := len(c.bounds) - len(c.morphs) - 2
+func (c *Chunk) TokensBounds() iter.Seq2[int, [2]int] {
+	i := 0
 
-	r := make([]int, 0, n)
+	return func(yield func(int, [2]int) bool) {
+		start := -1
 
-	for _, b := range c.bounds[1 : len(c.bounds)-1] {
-		found := false
+		for end, b := range c.bounds {
+			if !b {
+				continue
+			}
 
-		for _, m := range c.morphs {
-			if b == m {
-				found = true
+			if start == -1 {
+				start = end
 
-				break
+				continue
+			}
+
+			if !yield(i, [2]int{start, end}) {
+				return
+			}
+
+			start = end
+
+			i++
+		}
+	}
+}
+
+func (c *Chunk) Tokens() iter.Seq2[int, string] {
+	return func(yield func(int, string) bool) {
+		for i, bounds := range c.TokensBounds() {
+			start := bounds[0]
+			end := bounds[1]
+
+			token := c.src[start:end]
+
+			if !yield(i, token) {
+				return
 			}
 		}
-
-		if !found {
-			r = append(r, b)
-		}
 	}
-
-	if len(r) != n {
-		panic("unexpected number of morphs")
-	}
-
-	c.morphs = r
 }

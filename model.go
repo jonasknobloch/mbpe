@@ -99,10 +99,10 @@ func (m *MBPE) TokenizeLayered(phrase string, maxRank int) [][]int {
 
 	layers := make([][]int, len(merges)+1)
 
-	toIDs := func(tokens []string) []int {
-		layer := make([]int, len(tokens))
+	toIDs := func(c *Chunk) []int {
+		layer := make([]int, c.NumTokens())
 
-		for i, token := range tokens {
+		for i, token := range c.Tokens() {
 			id, ok := m.atoi[token]
 
 			if !ok {
@@ -115,12 +115,12 @@ func (m *MBPE) TokenizeLayered(phrase string, maxRank int) [][]int {
 		return layer
 	}
 
-	layers[0] = toIDs(chunk.Tokens())
+	layers[0] = toIDs(chunk)
 
 	for i, pos := range merges {
 		chunk.MergePairIdx(pos)
 
-		layers[i+1] = toIDs(chunk.Tokens())
+		layers[i+1] = toIDs(chunk)
 	}
 
 	return layers
@@ -134,11 +134,11 @@ func (m *MBPE) tokenize(phrase string, merges *[]int, maxRank int) []int {
 	c := NewChunk(phrase, 1, nil, 0)
 
 	for {
-		pairs := c.Pairs()
-
-		if len(pairs) == 0 {
+		if c.NumPairs() == 0 {
 			break
 		}
+
+		pairs := c.Pairs()
 
 		idx := -1
 		rank := -1
@@ -171,7 +171,7 @@ func (m *MBPE) tokenize(phrase string, merges *[]int, maxRank int) []int {
 		c.MergePairIdx(idx)
 	}
 
-	r := make([]int, len(c.bounds)-1)
+	r := make([]int, c.NumTokens())
 
 	for i, token := range c.Tokens() {
 		id, ok := m.atoi[token]
