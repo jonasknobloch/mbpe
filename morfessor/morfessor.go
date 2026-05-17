@@ -55,16 +55,14 @@ func decodeModel(name string) (*pb.BaselineModel, error) {
 }
 
 func unicodeScalarBounds(message string) []int {
-	var bounds []int
+	bounds := make([]int, 0, len(message)) // utf8.RuneCountInString(message)
 
 	i := 0
 
 	for _, r := range message {
-		l := len(string(r))
+		i += utf8.RuneLen(r)
 
-		bounds = append(bounds, i+l)
-
-		i += l
+		bounds = append(bounds, i)
 	}
 
 	return bounds
@@ -159,7 +157,9 @@ func viterbiSegment(model *pb.BaselineModel, compound string, addCount float64, 
 			}
 
 			if addCount == 0 {
-				if len(unicodeScalarBounds(construction)) == 1 {
+				_, size := utf8.DecodeRuneInString(construction)
+
+				if size == len(construction) {
 					cost += badLikelihood
 
 					evalPath(pt, cost)
