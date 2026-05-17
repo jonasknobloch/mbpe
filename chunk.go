@@ -2,6 +2,7 @@ package mbpe
 
 import (
 	"iter"
+	"sync"
 	"unicode/utf8"
 )
 
@@ -20,6 +21,12 @@ type Change struct {
 }
 
 var InvertWeightFunction = false
+
+var pairWeightPool = sync.Pool{
+	New: func() any {
+		return make(map[Pair]float64)
+	},
+}
 
 func NewChunk(src string, n int, splits []string, alpha float64) *Chunk {
 	bounds := make([]bool, len(src)+1)
@@ -124,47 +131,37 @@ func (c *Chunk) Pairs() iter.Seq2[int, Pair] {
 	}
 }
 
-func (c *Chunk) WeightedPairs() ([]Pair, []float64, float64) {
-	return c.weightedPairs(InvertWeightFunction)
+func (c *Chunk) PairWeights(weights map[Pair]float64) float64 {
+	return c.pairWeights(InvertWeightFunction, weights)
 }
 
-func (c *Chunk) weightedPairs(inverse bool) ([]Pair, []float64, float64) {
-	pairs, weights, epsilon := c.pairWeights(inverse)
-
-	for i := range weights {
-		weights[i] *= float64(c.n)
-	}
-
-	epsilon *= float64(c.n)
-
-	return pairs, weights, epsilon
-}
-
-func (c *Chunk) pairWeights(inverse bool) ([]Pair, []float64, float64) {
+func (c *Chunk) pairWeights(inverse bool, weights map[Pair]float64) float64 {
 	numPairs := c.NumPairs()
 
 	if numPairs == 0 {
-		return nil, []float64{}, 0.0
+		return 0.0
 	}
 
 	n := float64(numPairs)
 	k := 0.0
 
 	if c.morphs != nil {
-		for _, bounds := range c.PairBounds() {
-			if c.morphs[bounds[1]] != inverse {
+		for _, pair := range c.PairBounds() {
+			if c.morphs[pair[1]] != inverse {
 				k++
 			}
 		}
 	}
 
-	pairs := make([]Pair, numPairs)
-	weights := make([]float64, numPairs)
+	scale := float64(c.n)
 
-	for i, bounds := range c.PairBounds() {
-		pairs[i] = Pair{
-			c.src[bounds[0]:bounds[1]],
-			c.src[bounds[1]:bounds[2]],
+	for _, bounds := range c.PairBounds() {
+		left := c.src[bounds[0]:bounds[1]]
+		right := c.src[bounds[1]:bounds[2]]
+
+		pair := Pair{
+			left,
+			right,
 		}
 
 		var w float64
@@ -175,12 +172,12 @@ func (c *Chunk) pairWeights(inverse bool) ([]Pair, []float64, float64) {
 			w = 1 + (c.alpha * k / n)
 		}
 
-		weights[i] = w
+		weights[pair] += w * scale
 	}
 
-	epsilon := c.alpha * k / n // no merge
+	epsilon := (c.alpha * k / n) * scale // no merge
 
-	return pairs, weights, epsilon
+	return epsilon
 }
 
 func (c *Chunk) MergePairIdx(i int) {
@@ -217,25 +214,25 @@ func (c *Chunk) MergePair(left, right string) {
 	}
 }
 
-func (c *Chunk) TrackedMerge(merge Merge) (map[Pair]Change, float64) {
-	changes := make(map[Pair]Change)
+func (c *Chunk) TrackedMerge(merge Merge, changes map[Pair]Change) float64 {
+	before := pairWeightPool.Get().(map[Pair]float64)
+	after := pairWeightPool.Get().(map[Pair]float64)
 
-	pairsBefore, weightsBefore, epsilonBefore := c.WeightedPairs()
+	defer func() {
+		clear(before)
+		pairWeightPool.Put(before)
+	}()
+
+	defer func() {
+		clear(after)
+		pairWeightPool.Put(after)
+	}()
+
+	epsilonBefore := c.PairWeights(before)
 
 	c.MergePair(merge.pair[0], merge.pair[1])
 
-	pairsAfter, weightsAfter, epsilonAfter := c.WeightedPairs()
-
-	before := make(map[Pair]float64)
-	after := make(map[Pair]float64)
-
-	for i, pair := range pairsBefore {
-		before[pair] += weightsBefore[i]
-	}
-
-	for i, pair := range pairsAfter {
-		after[pair] += weightsAfter[i]
-	}
+	epsilonAfter := c.PairWeights(after)
 
 	for pair, weightBefore := range before {
 		if weightAfter, ok := after[pair]; ok {
@@ -267,7 +264,7 @@ func (c *Chunk) TrackedMerge(merge Merge) (map[Pair]Change, float64) {
 		}
 	}
 
-	return changes, epsilonAfter - epsilonBefore
+	return epsilonAfter - epsilonBefore
 }
 
 func (c *Chunk) NumTokens() int {

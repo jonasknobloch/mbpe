@@ -18,9 +18,11 @@ func TestChunk_Pairs(t *testing.T) {
 func TestChunk_WeightedPairs(t *testing.T) {
 	c := NewChunk("Ġthth", 2, nil, 1)
 
-	pairs, weights, epsilon := c.WeightedPairs()
+	weights := make(map[Pair]float64)
 
-	fmt.Println(pairs, weights, epsilon)
+	epsilon := c.PairWeights(weights)
+
+	fmt.Println(weights, epsilon)
 
 	// TODO implement
 }
@@ -54,12 +56,14 @@ func TestChunk_MergePair(t *testing.T) {
 func TestChunk_TrackedMerge(t *testing.T) {
 	c := NewChunk("Ġthither", 1, nil, 0)
 
-	changes, _ := c.TrackedMerge(Merge{
+	changes := make(map[Pair]Change)
+
+	_ = c.TrackedMerge(Merge{
 		pair:      Pair{"Ġ", "t"},
 		ids:       [2]int{0, 1},
 		weight:    0,
 		positions: nil,
-	})
+	}, changes)
 
 	if len(changes) != 3 {
 		t.Errorf("expected %d changes but got %d\n", 3, len(changes))

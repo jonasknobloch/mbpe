@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"sort"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -20,6 +21,12 @@ type MBPETrainer struct {
 	vocabSize       int
 	dict            *Dict
 	initialAlphabet map[string]struct{}
+}
+
+var changesPool = sync.Pool{
+	New: func() any {
+		return make(map[Pair]Change)
+	},
 }
 
 func NewMBPETrainer(preTokenizer PreTokenizer, segmenter Segmenter, model *MBPE, vocabSize int, initialAlphabet map[string]struct{}) *MBPETrainer {
@@ -134,21 +141,15 @@ func (t *MBPETrainer) Train() {
 
 	epsilon := float64(0)
 
+	weights := make(map[Pair]float64)
+
 	for i, chunk := range chunks {
-		pairs, weights, delta := chunk.WeightedPairs()
+		clear(weights)
 
-		epsilon += delta
+		epsilon += chunk.PairWeights(weights)
 
-		for j, pair := range pairs {
-			if _, ok := mergeWeights[pair]; !ok {
-				mergeWeights[pair] = 0
-			}
-
-			if _, ok := pairPositions[pair]; !ok {
-				pairPositions[pair] = make([]int, 0)
-			}
-
-			mergeWeights[pair] += weights[j]
+		for pair, w := range weights {
+			mergeWeights[pair] += w
 			pairPositions[pair] = append(pairPositions[pair], i)
 		}
 
@@ -197,10 +198,12 @@ func (t *MBPETrainer) Train() {
 
 		t.AddToken(top.pair[0], top.pair[1])
 
-		for _, position := range top.positions {
-			chunk := &chunks[position]
+		changes := changesPool.Get().(map[Pair]Change)
 
-			changes, delta := chunk.TrackedMerge(top)
+		for _, position := range top.positions {
+			clear(changes)
+
+			delta := chunks[position].TrackedMerge(top, changes)
 
 			epsilon += delta
 
@@ -218,10 +221,6 @@ func (t *MBPETrainer) Train() {
 
 				if change.remove || change.update {
 					continue // don't queue removals and weight updates
-				}
-
-				if _, ok := pairPositions[pair]; !ok {
-					pairPositions[pair] = make([]int, 0)
 				}
 
 				pairPositions[pair] = append(pairPositions[pair], position)
