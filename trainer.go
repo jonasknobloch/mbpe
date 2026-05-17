@@ -5,6 +5,7 @@ import (
 	"container/heap"
 	"fmt"
 	"os"
+	"runtime"
 	"sort"
 	"sync"
 	"sync/atomic"
@@ -117,21 +118,40 @@ func (t *MBPETrainer) Train() {
 	chunks := t.dict.Items()
 
 	if t.segmenter != nil {
-		pbSplit := NewProgressBar("Segment chunks", 20, len(chunks), time.Now())
+		pbSplit := tui.NewProgressBar("Segment chunks", 20, len(chunks), time.Now())
+
+		pbSplit.Start(1*time.Second, func() int {
+			return pbSplit.Completed()
+		})
+
+		var wg sync.WaitGroup
+
+		sem := make(chan struct{}, runtime.NumCPU())
 
 		for i := range chunks {
-			segments, alpha := SegmentWithoutPrefixWhitespace(chunks[i].src, t.segmenter)
+			wg.Add(1)
 
-			chunks[i].Split(segments)
-			chunks[i].Alpha(alpha)
+			sem <- struct{}{}
 
-			// chunks[i].Invert()
+			go func(i int) {
+				defer wg.Done()
 
-			pbSplit.Increment()
-			pbSplit.Print()
+				defer func() {
+					<-sem
+				}()
+
+				segments, alpha := SegmentWithoutPrefixWhitespace(chunks[i].src, t.segmenter)
+
+				chunks[i].Split(segments)
+				chunks[i].Alpha(alpha)
+
+				pbSplit.Add(1)
+			}(i)
 		}
 
-		pbSplit.Finish()
+		wg.Wait()
+
+		pbSplit.Close()
 	}
 
 	var mergeWeights = make(map[Pair]float64) // pair_counts
