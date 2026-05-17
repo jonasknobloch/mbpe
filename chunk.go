@@ -67,7 +67,7 @@ func (c *Chunk) Split(segments []string) {
 
 	i := 0
 
-	for _, sub := range segments[:len(segments)-1] {
+	for _, sub := range segments {
 		if sub != c.src[i:i+len(sub)] {
 			panic("unexpected segment")
 		}
