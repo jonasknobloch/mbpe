@@ -7,14 +7,14 @@ import (
 
 type baseUniformizer struct{}
 
-func (s *baseUniformizer) Segment(text string) ([]string, float64) {
-	return []string{"foo", "bar"}, 1.0
+func (s *baseUniformizer) Segment(text string) []string {
+	return []string{"foo", "bar"}
 }
 
 func TestUniformizer_Segment(t *testing.T) {
 	u := NewUniformizer(&baseUniformizer{})
 
-	segmentation, _ := u.Segment("foobarbaz")
+	segmentation := u.Segment("foobarbaz")
 
 	expected := []string{"foob", "arbaz"}
 

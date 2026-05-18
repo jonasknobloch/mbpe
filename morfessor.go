@@ -9,17 +9,11 @@ import (
 
 type Morfessor struct {
 	model *morfessor.Model
-	alpha float64
 }
 
-func NewMorfessor(alpha float64) *Morfessor {
-	if alpha < 0 || alpha > 1 {
-		panic("alpha must be in [0, 1]")
-	}
-
+func NewMorfessor() *Morfessor {
 	return &Morfessor{
 		model: morfessor.NewModel(),
-		alpha: alpha,
 	}
 }
 
@@ -27,7 +21,7 @@ func (m *Morfessor) LoadModel(name string) error {
 	return m.model.LoadModel(name)
 }
 
-func (m *Morfessor) Segment(compound string) ([]string, float64) {
+func (m *Morfessor) Segment(compound string) []string {
 	substrings, count := m.model.Segment(compound)
 
 	singles := 0
@@ -38,13 +32,13 @@ func (m *Morfessor) Segment(compound string) ([]string, float64) {
 		}
 
 		if singles == 2 {
-			return []string{compound}, 0
+			return []string{compound}
 		}
 	}
 
 	if count == math.NaN() || count < 0 {
-		return []string{compound}, 0
+		return []string{compound}
 	}
 
-	return substrings, m.alpha
+	return substrings
 }

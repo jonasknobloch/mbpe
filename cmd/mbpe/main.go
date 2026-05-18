@@ -263,8 +263,8 @@ func segmentFile(name string, vocabSize int) {
 func train() {
 	out := "out/morfessor"
 
-	morfessor := func(alpha float64) mbpe.Segmenter {
-		m := mbpe.NewMorfessor(alpha)
+	morfessor := func() mbpe.Segmenter {
+		m := mbpe.NewMorfessor()
 
 		if err := m.LoadModel("data/morfessor/semisup_model.proto"); err != nil {
 			log.Fatal(err)
@@ -275,37 +275,37 @@ func train() {
 
 	// mbpe.InvertWeightFunction = true
 
-	m000 := morfessor(0.0)
-	m010 := morfessor(0.1)
-	m020 := morfessor(0.2)
-	m030 := morfessor(0.3)
-	m040 := morfessor(0.4)
-	m050 := morfessor(0.5)
-	m060 := morfessor(0.6)
-	m070 := morfessor(0.7)
-	m080 := morfessor(0.8)
-	m090 := morfessor(0.9)
-	m100 := morfessor(1.0)
+	m000 := morfessor()
+	m010 := morfessor()
+	m020 := morfessor()
+	m030 := morfessor()
+	m040 := morfessor()
+	m050 := morfessor()
+	m060 := morfessor()
+	m070 := morfessor()
+	m080 := morfessor()
+	m090 := morfessor()
+	m100 := morfessor()
 
-	newTrainer := func(segmenter mbpe.Segmenter) *mbpe.MBPETrainer {
-		return mbpe.NewMBPETrainer(mbpe.NewByteLevel(true), segmenter, mbpe.NewMBPE(), 1<<17, nil)
+	newTrainer := func(segmenter mbpe.Segmenter, alpha float64) *mbpe.MBPETrainer {
+		return mbpe.NewMBPETrainer(mbpe.NewByteLevel(true), segmenter, alpha, mbpe.NewMBPE(), 1<<17, nil)
 	}
 
 	trainers := []struct {
 		*mbpe.MBPETrainer
 		string
 	}{
-		{newTrainer(m000), "m000_babylm"},
-		{newTrainer(m010), "m010_babylm"},
-		{newTrainer(m020), "m020_babylm"},
-		{newTrainer(m030), "m030_babylm"},
-		{newTrainer(m040), "m040_babylm"},
-		{newTrainer(m050), "m050_babylm"},
-		{newTrainer(m060), "m060_babylm"},
-		{newTrainer(m070), "m070_babylm"},
-		{newTrainer(m080), "m080_babylm"},
-		{newTrainer(m090), "m090_babylm"},
-		{newTrainer(m100), "m100_babylm"},
+		{newTrainer(m000, 0.0), "m000_babylm"},
+		{newTrainer(m010, 0.1), "m010_babylm"},
+		{newTrainer(m020, 0.2), "m020_babylm"},
+		{newTrainer(m030, 0.3), "m030_babylm"},
+		{newTrainer(m040, 0.4), "m040_babylm"},
+		{newTrainer(m050, 0.5), "m050_babylm"},
+		{newTrainer(m060, 0.6), "m060_babylm"},
+		{newTrainer(m070, 0.7), "m070_babylm"},
+		{newTrainer(m080, 0.8), "m080_babylm"},
+		{newTrainer(m090, 0.9), "m090_babylm"},
+		{newTrainer(m100, 1.0), "m100_babylm"},
 	}
 
 	for i, t := range trainers {

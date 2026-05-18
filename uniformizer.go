@@ -10,13 +10,13 @@ func NewUniformizer(segmenter Segmenter) *Uniformizer {
 	}
 }
 
-func (u *Uniformizer) Segment(text string) ([]string, float64) {
-	template, alpha := u.segmenter.Segment(text)
+func (u *Uniformizer) Segment(text string) []string {
+	template := u.segmenter.Segment(text)
 
 	n := len(template)
 
 	if n == 1 {
-		return template, alpha
+		return template
 	}
 
 	segmentation := make([]string, 0, n)
@@ -34,5 +34,5 @@ func (u *Uniformizer) Segment(text string) ([]string, float64) {
 
 	segmentation = append(segmentation, string(runes[prev:]))
 
-	return segmentation, alpha
+	return segmentation
 }

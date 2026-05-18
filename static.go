@@ -6,18 +6,12 @@ import (
 )
 
 type Static struct {
-	dict  map[string][]string
-	alpha float64
+	dict map[string][]string
 }
 
-func NewStatic(alpha float64) *Static {
-	if alpha < 0 || alpha > 1 {
-		panic("alpha must be in [0, 1]")
-	}
-
+func NewStatic() *Static {
 	return &Static{
-		dict:  make(map[string][]string),
-		alpha: alpha,
+		dict: make(map[string][]string),
 	}
 }
 
@@ -33,12 +27,12 @@ func (c *Static) LoadDict(name string) error {
 	})
 }
 
-func (c *Static) Segment(text string) ([]string, float64) {
+func (c *Static) Segment(text string) []string {
 	substrings, ok := c.dict[text]
 
 	if !ok {
-		return []string{text}, 0
+		return []string{text}
 	}
 
-	return substrings, c.alpha
+	return substrings
 }
