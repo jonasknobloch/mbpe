@@ -3,7 +3,9 @@ package mbpe
 import (
 	"bufio"
 	"container/heap"
+	"encoding/gob"
 	"fmt"
+	"io"
 	"os"
 	"runtime"
 	"sort"
@@ -18,6 +20,7 @@ import (
 type MBPETrainer struct {
 	preTokenizer    PreTokenizer
 	segmenter       Segmenter
+	segments        sync.Map
 	alpha           float64
 	model           *MBPE
 	vocabSize       int
@@ -39,6 +42,7 @@ func NewMBPETrainer(preTokenizer PreTokenizer, segmenter Segmenter, alpha float6
 	return &MBPETrainer{
 		preTokenizer:    preTokenizer,
 		segmenter:       segmenter,
+		segments:        sync.Map{},
 		alpha:           alpha,
 		model:           model,
 		vocabSize:       vocabSize,
@@ -107,6 +111,43 @@ func (t *MBPETrainer) LoadDict(name string) error {
 	return t.dict.Load(name)
 }
 
+func (t *MBPETrainer) SaveSegments(w io.Writer) error {
+	m := make(map[string][]string)
+
+	t.segments.Range(func(key, value any) bool {
+		k := key.(string)
+		v := value.([]string)
+
+		m[k] = v
+
+		return true
+	})
+
+	enc := gob.NewEncoder(w)
+
+	if err := enc.Encode(m); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (t *MBPETrainer) LoadSegments(r io.Reader) error {
+	m := make(map[string][]string)
+
+	dec := gob.NewDecoder(r)
+
+	if err := dec.Decode(&m); err != nil {
+		return err
+	}
+
+	for k, v := range m {
+		t.segments.Store(k, v)
+	}
+
+	return nil
+}
+
 func (t *MBPETrainer) AddToken(left, right string) {
 	t.model.AddToken(left + right)
 	t.model.AddMerge(left, right)
@@ -146,7 +187,15 @@ func (t *MBPETrainer) Train() {
 					<-sem
 				}()
 
-				segments := SegmentWithoutPrefixWhitespace(chunks[i].src, t.segmenter)
+				var segments []string
+
+				if v, ok := t.segments.Load(chunks[i].src); ok {
+					segments = v.([]string)
+				} else {
+					segments = SegmentWithoutPrefixWhitespace(chunks[i].src, t.segmenter)
+
+					t.segments.Store(chunks[i].src, segments)
+				}
 
 				chunks[i].Split(segments)
 				chunks[i].Alpha(t.alpha)
