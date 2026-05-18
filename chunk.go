@@ -147,7 +147,7 @@ func (c *Chunk) pairWeights(inverse bool, weights map[Pair]float64) float64 {
 
 	if c.morphs != nil {
 		for _, pair := range c.PairBounds() {
-			if c.morphs[pair[1]] != inverse {
+			if clashes(c.morphs, pair[0], pair[2], inverse) {
 				k++
 			}
 		}
@@ -166,7 +166,7 @@ func (c *Chunk) pairWeights(inverse bool, weights map[Pair]float64) float64 {
 
 		var w float64
 
-		if c.morphs != nil && c.morphs[bounds[1]] != inverse {
+		if c.morphs != nil && clashes(c.morphs, bounds[0], bounds[2], inverse) {
 			w = (1 - c.alpha) + (c.alpha * (k - 1) / n)
 		} else {
 			w = 1 + (c.alpha * k / n)
@@ -178,6 +178,18 @@ func (c *Chunk) pairWeights(inverse bool, weights map[Pair]float64) float64 {
 	epsilon := (c.alpha * k / n) * scale // no merge
 
 	return epsilon
+}
+
+// clashes reports whether any morpheme boundaries fall strictly within (start, end).
+// Only checking the midpoint of a pair would miss previously crossed morpheme boundary.
+func clashes(morphs []bool, start, end int, inverse bool) bool {
+	for _, m := range morphs[start+1 : end] {
+		if m != inverse {
+			return true
+		}
+	}
+
+	return false
 }
 
 func (c *Chunk) MergePairIdx(i int) {
