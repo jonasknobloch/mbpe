@@ -21,6 +21,7 @@ type Change struct {
 }
 
 var InvertWeightFunction = false
+var UseSimpleClashes = false
 
 var pairWeightPool = sync.Pool{
 	New: func() any {
@@ -146,8 +147,8 @@ func (c *Chunk) pairWeights(inverse bool, weights map[Pair]float64) float64 {
 	k := 0.0
 
 	if c.morphs != nil {
-		for _, pair := range c.PairBounds() {
-			if clashes(c.morphs, pair[0], pair[2], inverse) {
+		for _, bounds := range c.PairBounds() {
+			if clashes(c.morphs, bounds, inverse) {
 				k++
 			}
 		}
@@ -166,7 +167,7 @@ func (c *Chunk) pairWeights(inverse bool, weights map[Pair]float64) float64 {
 
 		var w float64
 
-		if c.morphs != nil && clashes(c.morphs, bounds[0], bounds[2], inverse) {
+		if c.morphs != nil && clashes(c.morphs, bounds, inverse) {
 			w = (1 - c.alpha) + (c.alpha * (k - 1) / n)
 		} else {
 			w = 1 + (c.alpha * k / n)
@@ -182,14 +183,27 @@ func (c *Chunk) pairWeights(inverse bool, weights map[Pair]float64) float64 {
 
 // clashes reports whether any morpheme boundaries fall strictly within (start, end).
 // Only checking the midpoint of a pair would miss previously crossed morpheme boundary.
-func clashes(morphs []bool, start, end int, inverse bool) bool {
-	for _, m := range morphs[start+1 : end] {
+func clashes(morphs []bool, bounds [3]int, inverse bool) bool {
+	if UseSimpleClashes {
+		return clashesSimple(morphs, bounds, inverse)
+	}
+
+	start := bounds[0]
+	next := bounds[2]
+
+	for _, m := range morphs[start+1 : next] {
 		if m != inverse {
 			return true
 		}
 	}
 
 	return false
+}
+
+func clashesSimple(morphs []bool, bounds [3]int, inverse bool) bool {
+	end := bounds[1]
+
+	return morphs[end] != inverse
 }
 
 func (c *Chunk) MergePairIdx(i int) {
