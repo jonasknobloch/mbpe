@@ -280,9 +280,13 @@ func (c *Chunk) TrackedMerge(merge Merge, changes map[Pair]Change) float64 {
 }
 
 func (c *Chunk) NumTokens() int {
+	return c.numTokens(c.bounds)
+}
+
+func (c *Chunk) numTokens(bounds []bool) int {
 	n := 0
 
-	for _, b := range c.bounds {
+	for _, b := range bounds {
 		if b {
 			n++
 		}
@@ -292,12 +296,16 @@ func (c *Chunk) NumTokens() int {
 }
 
 func (c *Chunk) TokensBounds() iter.Seq2[int, [2]int] {
+	return c.tokensBounds(c.bounds)
+}
+
+func (c *Chunk) tokensBounds(bounds []bool) iter.Seq2[int, [2]int] {
 	i := 0
 
 	return func(yield func(int, [2]int) bool) {
 		start := -1
 
-		for end, b := range c.bounds {
+		for end, b := range bounds {
 			if !b {
 				continue
 			}
@@ -320,8 +328,12 @@ func (c *Chunk) TokensBounds() iter.Seq2[int, [2]int] {
 }
 
 func (c *Chunk) Tokens() iter.Seq2[int, string] {
+	return c.tokens(c.TokensBounds())
+}
+
+func (c *Chunk) tokens(tokenBounds iter.Seq2[int, [2]int]) iter.Seq2[int, string] {
 	return func(yield func(int, string) bool) {
-		for i, bounds := range c.TokensBounds() {
+		for i, bounds := range tokenBounds {
 			start := bounds[0]
 			end := bounds[1]
 
@@ -332,4 +344,16 @@ func (c *Chunk) Tokens() iter.Seq2[int, string] {
 			}
 		}
 	}
+}
+
+func (c *Chunk) NumSegments() int {
+	return c.numTokens(c.morphs)
+}
+
+func (c *Chunk) SegmentBounds() iter.Seq2[int, [2]int] {
+	return c.tokensBounds(c.morphs)
+}
+
+func (c *Chunk) Segments() iter.Seq2[int, string] {
+	return c.tokens(c.SegmentBounds())
 }
