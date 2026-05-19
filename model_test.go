@@ -1,7 +1,6 @@
 package mbpe
 
 import (
-	"log"
 	"os"
 	"slices"
 	"testing"
@@ -18,10 +17,11 @@ func TestMain(m *testing.M) {
 func BenchmarkMBPE_Tokenize(b *testing.B) {
 	model := NewMBPE()
 
-	err := model.Load("out/vocab.json", "out/merges.txt")
+	vocab := shelf.Abs("models/gpt2/vocab.json")
+	merges := shelf.Abs("models/gpt2/merges.txt")
 
-	if err != nil {
-		log.Fatal(err)
+	if err := model.Load(vocab, merges); err != nil {
+		b.Fatal(err)
 	}
 
 	tokenizer := NewTokenizer(model)
