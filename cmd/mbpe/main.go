@@ -82,7 +82,15 @@ func eval() {
 	fert := func() mbpe.Evaluator {
 		fertilityEval := mbpe.NewFertilityEvaluator()
 
-		if err := fertilityEval.InitDict("data/babyllm/test/all.test"); err != nil {
+		var reader dataset.Reader
+
+		if r, err := dataset.NewFileReader("data/babyllm/test", "*.test"); err != nil {
+			log.Fatal(err)
+		} else {
+			reader = r
+		}
+
+		if err := fertilityEval.InitDict(reader); err != nil {
 			log.Fatal(err)
 		}
 

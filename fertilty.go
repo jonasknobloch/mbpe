@@ -1,6 +1,10 @@
 package mbpe
 
-import "errors"
+import (
+	"errors"
+
+	"go.jknobloc.com/x/dataset"
+)
 
 type FertilityEvaluator struct {
 	dict *Dict
@@ -12,8 +16,8 @@ func NewFertilityEvaluator() *FertilityEvaluator {
 	}
 }
 
-func (f *FertilityEvaluator) InitDict(names ...string) error {
-	return f.dict.ProcessFiles(names...)
+func (f *FertilityEvaluator) InitDict(reader dataset.Reader) error {
+	return f.dict.ProcessTexts(reader.Texts())
 }
 
 func (f *FertilityEvaluator) LoadDict(name string) error {
