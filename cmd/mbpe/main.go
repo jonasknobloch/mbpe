@@ -12,8 +12,13 @@ import (
 
 	"github.com/jonasknobloch/mbpe"
 	"go.jknobloc.com/x/dataset"
+	"go.jknobloc.com/x/shelf"
 	"golang.org/x/image/colornames"
 )
+
+func init() {
+	shelf.Root = "../.shelf"
+}
 
 func main() {
 	// tokenize()
@@ -24,7 +29,7 @@ func main() {
 }
 
 func eval() {
-	base := "out/morfessor"
+	base := shelf.Abs("results/knobloch/minipile")
 
 	var tokenizers []string
 
@@ -62,7 +67,7 @@ func eval() {
 	bpr := func() mbpe.Evaluator {
 		bprEval := mbpe.NewBPREvaluator()
 
-		if err := bprEval.LoadSegmentations("data/mbpe/goldstd_trainset.segmentation.eng.tsv"); err != nil {
+		if err := bprEval.LoadSegmentations(shelf.Abs("mbpe/goldstd_trainset.segmentation.eng.tsv")); err != nil {
 			log.Fatal(err)
 		}
 
@@ -72,7 +77,7 @@ func eval() {
 	ml := func() mbpe.Evaluator {
 		mlEval := mbpe.NewMergeLayerEvaluator()
 
-		if err := mlEval.LoadSegmentations("data/mbpe/goldstd_trainset.segmentation.eng.tsv"); err != nil {
+		if err := mlEval.LoadSegmentations(shelf.Abs("mbpe/goldstd_trainset.segmentation.eng.tsv")); err != nil {
 			log.Fatal(err)
 		}
 
@@ -84,7 +89,7 @@ func eval() {
 
 		var reader dataset.Reader
 
-		if r, err := dataset.NewFileReader("data/babyllm/test", "*.test"); err != nil {
+		if r, err := dataset.NewParquetReader(shelf.Abs("data/minipile/test")); err != nil {
 			log.Fatal(err)
 		} else {
 			reader = r
@@ -146,7 +151,7 @@ func eval() {
 
 	data := []mbpe.PlotData{s00, s01, s02, s03, s04, sBase}
 
-	mbpe.Plot(data, [2]float64{1.00, 1.2}, [2]float64{0.75, 0.90}, "Fertility", "Merge Layer", "assets/plot.svg")
+	mbpe.Plot(data, [2]float64{1.00, 1.2}, [2]float64{0.75, 0.90}, "Fertility", "Merge Layer", shelf.Abs("assets/mbpe/plot.svg"))
 
 	fmt.Printf(md00)
 	fmt.Println()
