@@ -148,6 +148,57 @@ func (t *MBPETrainer) LoadSegments(r io.Reader) error {
 	return nil
 }
 
+func (t *MBPETrainer) Segment() {
+	chunks := t.dict.Items()
+
+	if t.segmenter == nil {
+		return
+	}
+
+	pbSplit := tui.NewProgressBar("Segment chunks", 20, len(chunks), time.Now())
+
+	pbSplit.Start(1*time.Second, func() int {
+		return pbSplit.Completed()
+	})
+
+	var wg sync.WaitGroup
+
+	sem := make(chan struct{}, runtime.NumCPU())
+
+	for i := range chunks {
+		wg.Add(1)
+
+		sem <- struct{}{}
+
+		go func(i int) {
+			defer wg.Done()
+
+			defer func() {
+				<-sem
+			}()
+
+			var segments []string
+
+			if v, ok := t.segments.Load(chunks[i].src); ok {
+				segments = v.([]string)
+			} else {
+				segments = SegmentWithoutPrefixWhitespace(chunks[i].src, t.segmenter)
+
+				t.segments.Store(chunks[i].src, segments)
+			}
+
+			chunks[i].Split(segments)
+			chunks[i].Alpha(t.alpha)
+
+			pbSplit.Add(1)
+		}(i)
+	}
+
+	wg.Wait()
+
+	pbSplit.Close()
+}
+
 func (t *MBPETrainer) AddToken(left, right string) {
 	t.model.AddToken(left + right)
 	t.model.AddMerge(left, right)
@@ -163,51 +214,6 @@ func (t *MBPETrainer) Train() {
 	t.model.InitMerges(k)
 
 	chunks := t.dict.Items()
-
-	if t.segmenter != nil {
-		pbSplit := tui.NewProgressBar("Segment chunks", 20, len(chunks), time.Now())
-
-		pbSplit.Start(1*time.Second, func() int {
-			return pbSplit.Completed()
-		})
-
-		var wg sync.WaitGroup
-
-		sem := make(chan struct{}, runtime.NumCPU())
-
-		for i := range chunks {
-			wg.Add(1)
-
-			sem <- struct{}{}
-
-			go func(i int) {
-				defer wg.Done()
-
-				defer func() {
-					<-sem
-				}()
-
-				var segments []string
-
-				if v, ok := t.segments.Load(chunks[i].src); ok {
-					segments = v.([]string)
-				} else {
-					segments = SegmentWithoutPrefixWhitespace(chunks[i].src, t.segmenter)
-
-					t.segments.Store(chunks[i].src, segments)
-				}
-
-				chunks[i].Split(segments)
-				chunks[i].Alpha(t.alpha)
-
-				pbSplit.Add(1)
-			}(i)
-		}
-
-		wg.Wait()
-
-		pbSplit.Close()
-	}
 
 	var mergeWeights = make(map[Pair]float64) // pair_counts
 	var pairPositions = make(map[Pair][]int)  // where_to_update

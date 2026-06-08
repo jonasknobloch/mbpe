@@ -40,5 +40,8 @@ func (m *Morfessor) Segment(compound string) []string {
 		return []string{compound}
 	}
 
+	// TODO since is not tracked in the segmenter anymore we cant reject segmentations by returning alpha as zero
+	// TODO we should at least return bool ok from the segmenter
+
 	return substrings
 }
