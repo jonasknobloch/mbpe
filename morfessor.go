@@ -21,7 +21,7 @@ func (m *Morfessor) LoadModel(name string) error {
 	return m.model.LoadModel(name)
 }
 
-func (m *Morfessor) Segment(compound string) []string {
+func (m *Morfessor) Segment(compound string) ([]string, bool) {
 	substrings, count := m.model.Segment(compound)
 
 	singles := 0
@@ -32,16 +32,13 @@ func (m *Morfessor) Segment(compound string) []string {
 		}
 
 		if singles == 2 {
-			return []string{compound}
+			return []string{compound}, false
 		}
 	}
 
 	if count == math.NaN() || count < 0 {
-		return []string{compound}
+		return []string{compound}, false
 	}
 
-	// TODO since is not tracked in the segmenter anymore we cant reject segmentations by returning alpha as zero
-	// TODO we should at least return bool ok from the segmenter
-
-	return substrings
+	return substrings, true
 }

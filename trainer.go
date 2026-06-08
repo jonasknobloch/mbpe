@@ -28,6 +28,11 @@ type MBPETrainer struct {
 	initialAlphabet map[string]struct{}
 }
 
+type segmentsEntry struct {
+	Value []string
+	OK    bool
+}
+
 var changesPool = sync.Pool{
 	New: func() any {
 		return make(map[Pair]Change)
@@ -112,11 +117,11 @@ func (t *MBPETrainer) LoadDict(name string) error {
 }
 
 func (t *MBPETrainer) SaveSegments(w io.Writer) error {
-	m := make(map[string][]string)
+	m := make(map[string]segmentsEntry)
 
 	t.segments.Range(func(key, value any) bool {
 		k := key.(string)
-		v := value.([]string)
+		v := value.(segmentsEntry)
 
 		m[k] = v
 
@@ -133,7 +138,7 @@ func (t *MBPETrainer) SaveSegments(w io.Writer) error {
 }
 
 func (t *MBPETrainer) LoadSegments(r io.Reader) error {
-	m := make(map[string][]string)
+	m := make(map[string]segmentsEntry)
 
 	dec := gob.NewDecoder(r)
 
@@ -177,18 +182,28 @@ func (t *MBPETrainer) Segment() {
 				<-sem
 			}()
 
-			var segments []string
+			var segments segmentsEntry
 
 			if v, ok := t.segments.Load(chunks[i].src); ok {
-				segments = v.([]string)
+				segments = v.(segmentsEntry)
 			} else {
-				segments = SegmentWithoutPrefixWhitespace(chunks[i].src, t.segmenter)
+				segmentsValue, segmentsOk := SegmentWithoutPrefixWhitespace(chunks[i].src, t.segmenter)
+
+				segments = segmentsEntry{
+					Value: segmentsValue,
+					OK:    segmentsOk,
+				}
 
 				t.segments.Store(chunks[i].src, segments)
 			}
 
-			chunks[i].Split(segments)
-			chunks[i].Alpha(t.alpha)
+			chunks[i].Split(segments.Value)
+
+			if segments.OK {
+				chunks[i].Alpha(t.alpha)
+			} else {
+				chunks[i].Alpha(0)
+			}
 
 			pbSplit.Add(1)
 		}(i)

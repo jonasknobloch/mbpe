@@ -7,14 +7,14 @@ import (
 
 type baseInverter struct{}
 
-func (s *baseInverter) Segment(text string) []string {
-	return []string{"foo", "bar"}
+func (s *baseInverter) Segment(text string) ([]string, bool) {
+	return []string{"foo", "bar"}, true
 }
 
 func TestInverter_Segment(t *testing.T) {
 	i := NewInverter(&baseInverter{})
 
-	segmentation := i.Segment("foobar")
+	segmentation, _ := i.Segment("foobar")
 
 	expected := []string{"f", "o", "ob", "a", "r"}
 

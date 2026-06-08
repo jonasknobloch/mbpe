@@ -27,12 +27,12 @@ func (c *Static) LoadDict(name string) error {
 	})
 }
 
-func (c *Static) Segment(text string) []string {
+func (c *Static) Segment(text string) ([]string, bool) {
 	substrings, ok := c.dict[text]
 
 	if !ok {
-		return []string{text}
+		return []string{text}, false
 	}
 
-	return substrings
+	return substrings, ok
 }
