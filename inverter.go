@@ -12,8 +12,8 @@ func NewInverter(segmenter Segmenter) *Inverter {
 	}
 }
 
-func (i *Inverter) Segment(text string) []string {
-	template := i.segmenter.Segment(text)
+func (i *Inverter) Segment(text string) ([]string, bool) {
+	template, ok := i.segmenter.Segment(text)
 
 	result := make([]string, 0)
 
@@ -31,5 +31,5 @@ func (i *Inverter) Segment(text string) []string {
 		result = append(result, substrings[1:]...)
 	}
 
-	return result
+	return result, ok
 }

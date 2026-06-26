@@ -8,21 +8,21 @@ import (
 )
 
 type Segmenter interface {
-	Segment(string) []string
+	Segment(string) ([]string, bool)
 }
 
 var MergePrefixWhiteSpace = true
 
-func SegmentWithoutPrefixWhitespace(compound string, segmenter Segmenter) []string {
+func SegmentWithoutPrefixWhitespace(compound string, segmenter Segmenter) ([]string, bool) {
 	removedPrefixSpace := stripPrefixWhitespace(&compound)
 
-	substrings := segmenter.Segment(compound)
+	substrings, ok := segmenter.Segment(compound)
 
 	if removedPrefixSpace {
 		addPrefixWhitespace(&substrings)
 	}
 
-	return substrings
+	return substrings, ok
 }
 
 func stripPrefixWhitespace(compound *string) bool {
@@ -67,7 +67,7 @@ func SegmentFile(name string, segmenter Segmenter) error {
 	segmentations := make([][]string, len(gold))
 
 	for i, compound := range gold {
-		segmentations[i] = segmenter.Segment(compound)
+		segmentations[i], _ = segmenter.Segment(compound)
 	}
 
 	if err := toFile("segmentations.txt", func(writer *bufio.Writer) error {
