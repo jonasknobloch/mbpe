@@ -188,16 +188,32 @@ func clashes(morphs []bool, bounds [3]int, inverse bool) bool {
 		return clashesSimple(morphs, bounds, inverse)
 	}
 
+	// inverse == false
+	//
+	// [ f, f ] -> f
+	// [ f, t ] -> t
+	// [ t, t ] -> t
+
+	// inverse == true
+	//
+	// [ f, f ] -> t
+	// [ f, t ] -> f
+	// [ t, t ] -> f
+
 	start := bounds[0]
 	next := bounds[2]
 
+	clash := false
+
 	for _, m := range morphs[start+1 : next] {
-		if m != inverse {
-			return true
+		if m {
+			clash = true
+
+			break
 		}
 	}
 
-	return false
+	return clash != inverse
 }
 
 func clashesSimple(morphs []bool, bounds [3]int, inverse bool) bool {
